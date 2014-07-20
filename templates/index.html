@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+	{% if username %}
+		{% if running %}There is currently a session running.{% else %}There is no session running at the moment.{% endif %}<br>
+		You have {{ hours }}:{{ minutes }} left today.
+	{% endif %}
+{% endblock %}
