@@ -6,9 +6,8 @@ import os.path
 app = Flask(__name__)
 app.secret_key = "Apfelkuchen"
 users_list = []
-if os.path.isfile("users.txt"):
-	with open("users.txt", "rb") as handle:
-		users_list = pickle.loads(handle.read())
+if os.path.isfile("users"):
+	users_list = pickle.loads(open("users", "rb").read())
 
 @app.route("/")
 def index():
@@ -46,7 +45,7 @@ def register():
 	else:
 		username = request.form.get("username")
 		password = request.form.get("password")
-		users_list.append({"username": username, "password": password, "times": [timedelta(minutes=10) for i in range(7)], "today": timedelta(minutes=10), "running": False, "last_request": datetime.now()})
+		users_list.append({"username": username, "password": password, "times": [timedelta(hours=2) for i in range(7)], "today": timedelta(hours=2), "running": False, "last_request": datetime.now()})
 		save_users()
 		return render_template("complete_registration.html", new_user=username)
 
@@ -103,9 +102,26 @@ def time():
 	username = request.form.get("username")
 	user = get_user(username)
 	if not user:
-		return
+		return "Invalid username"
 	refresh_time_left(username)
 	return jsonify(**get_time_left(username))
+
+@app.route("/config", methods=["GET", "POST"])
+def config():
+	if request.method == "GET":
+		if is_logged_in():
+			return render_template("config.html", username=get_logged_in_user()["username"], weekdays=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], times=get_times(get_logged_in_user()["username"]))
+		else:
+			return render_template("invalid_login.html")
+	else:
+		if is_logged_in:
+			user = get_logged_in_user()
+			for i in range(7):
+				user["times"][i] = timedelta(hours=int(request.form[str(i) + " hours"]), minutes=int(request.form[str(i) + " minutes"]))
+			save_users()
+			return redirect(url_for("index"))
+		else:
+			return render_template("invalid_login.html")
 
 def refresh_time_left(username):
 	user = get_user(username)
@@ -132,6 +148,17 @@ def get_time_left(username):
 	seconds = total_seconds % 60
 	return {"hours": hours, "minutes": minutes, "seconds": seconds}
 
+def get_times(username):
+	times = []
+	user = get_user(username)
+	for allowed_time in user["times"]:
+		total_seconds = allowed_time.seconds
+		hours = total_seconds // 3600
+		minutes = (total_seconds % 3600) // 60
+		seconds = total_seconds % 60
+		times.append({"hours": hours, "minutes": minutes, "seconds": seconds})
+	return times
+
 def reset_time_left(username):
 	user = get_user(username)
 	user["today"] = +user["times"][datetime.now().weekday()]
@@ -154,11 +181,7 @@ def get_user(name):
 			return user
 
 def save_users():
-	with open('users.txt', 'wb') as handle:
-  		pickle.dump(users_list, handle)
+  	pickle.dump(users_list, open("users", "wb"))
 
 if __name__ == '__main__':
 	app.run(debug=True)
-
-import atexit
-atexit.register(save_users)

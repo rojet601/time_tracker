@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<form action="/config" method="post">
+<table>
+{% for i in range(7) %}
+<tr>
+	<td>{{ weekdays[i] }}</td>
+	<td><input type="number" value="{{ times[i].hours }}" name="{{ i }} hours" min="0" max="24" step="1"></td>
+	<td><input type="number" value="{{ times[i].minutes }}" name="{{ i }} minutes" min="0" max="59" step="1"></td>
+</tr>
+{% endfor %}
+</table>
+<input type="submit" value="Save">
+</form>
+{% endblock %}
