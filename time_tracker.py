@@ -12,10 +12,9 @@ if os.path.isfile("users.txt"):
 
 @app.route("/")
 def index():
-	if "username" in session:
-		username = session["username"]
-		user = get_user(username)
-		return render_template("index.html", username=username, hours=user["today"][0], minutes=user["today"][1])
+	if is_logged_in():
+		user = get_logged_in_user()
+		return render_template("index.html", username=user["username"], hours=str(user["today"][0]).zfill(2), minutes=str(user["today"][1]).zfill(2), seconds=str(user["today"][2]).zfill(2))
 	else:
 		return render_template("index.html")
 
@@ -45,7 +44,7 @@ def register():
 	else:
 		username = request.form["username"]
 		password = request.form["password"]
-		users_list.append({"username": username, "password": password, "times": [(1, 0) for i in range(7)], "today": [1, 0], "running": False, "last_request": datetime.now()})
+		users_list.append({"username": username, "password": password, "times": [(1, 0) for i in range(7)], "today": [1, 0, 0], "running": False, "last_request": datetime.now()})
 		with open('users.txt', 'wb') as handle:
   			pickle.dump(users_list, handle)
 		return render_template("complete_registration.html", new_user=username)
@@ -53,6 +52,12 @@ def register():
 @app.route("/users")
 def users():
 	return jsonify(users=users_list)
+
+def is_logged_in():
+	return "username" in session
+
+def get_logged_in_user():
+	return get_user(session.get("username"))
 
 def get_user(name):
 	for user in users_list:
