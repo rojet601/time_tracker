@@ -2,6 +2,7 @@
 {% block content %}
 	{% if username %}
 		{% if running %}There is currently a session running.{% else %}There is no session running at the moment.{% endif %}<br>
-		You have {{ hours }}:{{ minutes }}:{{ seconds }} left today.
+		You have {{ hours }}:{{ minutes }}:{{ seconds }} left today.<br><br>
+		<a href="/reset">Reset time quota</a>
 	{% endif %}
 {% endblock %}
