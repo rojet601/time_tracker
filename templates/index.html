@@ -4,6 +4,7 @@
 		{% if running %}There is currently a session running.{% else %}There is no session running at the moment.{% endif %}<br>
 		You have {{ hours }}:{{ minutes }}:{{ seconds }} left today.<br><br>
 		<a href="/reset">Reset time</a><br>
+		<a href="/settime">Set time</a><br>
 		<a href="/config">Configurate allowed times</a>
 	{% endif %}
 {% endblock %}
