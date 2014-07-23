@@ -1,8 +1,8 @@
 from flask import *
 from datetime import datetime, timedelta, date
 import pickle
-import os.path
 from user import User
+import os
 
 app = Flask(__name__)
 app.secret_key = "Apfelkuchen"
@@ -170,4 +170,5 @@ console_text = " "
 cprint("Startup complete")
 
 if __name__ == '__main__':
-	app.run(debug=True)
+	port = int(os.environ.get("PORT", 5000))
+	app.run(host="0.0.0.0", port=port)
