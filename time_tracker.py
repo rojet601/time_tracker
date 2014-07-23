@@ -3,12 +3,13 @@ from datetime import datetime, timedelta, date
 import pickle
 import os.path
 from apscheduler.scheduler import Scheduler
+from user import User
 
 app = Flask(__name__)
 app.secret_key = "Apfelkuchen"
 users_list = []
 if os.path.isfile("users"):
-	users_list = pickle.loads(open("users", "rb").read())
+	users_list = pickle.load(open("users", "rb"))
 
 sched = Scheduler()
 sched.start()
@@ -16,10 +17,9 @@ sched.start()
 @app.route("/")
 def index():
 	if is_logged_in():
-		user = get_logged_in_user()
-		refresh_time_left(user["username"])
-		time_left = get_time_left(user["username"])
-		return render_template("index.html", username=user["username"], running=user["running"], hours=str(time_left["hours"]).zfill(2), minutes=str(time_left["minutes"]).zfill(2), seconds=str(time_left["seconds"]).zfill(2))
+		u = get_logged_in_user()
+		time_left = u.get_time_left()
+		return render_template("index.html", username=u.username, running=u.running, hours=str(time_left["hours"]).zfill(2), minutes=str(time_left["minutes"]).zfill(2), seconds=str(time_left["seconds"]).zfill(2))
 	else:
 		return render_template("index.html")
 
@@ -30,7 +30,6 @@ def login():
 	else:
 		username = request.form.get("username")
 		password = request.form.get("password")
-		user = get_user(username)
 		if is_login_valid(username, password):
 			session["username"] = username
 			return redirect(url_for("index"))
@@ -49,7 +48,7 @@ def register():
 	else:
 		username = request.form.get("username")
 		password = request.form.get("password")
-		users_list.append({"username": username, "password": password, "times": [timedelta(hours=2) for i in range(7)], "today": timedelta(hours=2), "running": False, "last_request": datetime.now()})
+		users_list.append(User(username, password))
 		save_users()
 		return render_template("complete_registration.html", new_user=username)
 
@@ -62,12 +61,7 @@ def start():
 	username = request.form.get("username")
 	password = request.form.get("password")
 	if is_login_valid(username, password):
-		user = get_user(username)
-		if not user["last_request"].date() == date.today():
-			reset_time_left(username)
-		if not user["running"]:
-			user["last_request"] = datetime.now()
-			user["running"] = True
+		get_user(username).start()
 		return "Session for " + username + " started"
 	return "Invalid login"
 
@@ -76,10 +70,7 @@ def stop():
 	username = request.form.get("username")
 	password = request.form.get("password")
 	if is_login_valid(username, password):
-		user = get_user(username)
-		refresh_time_left(username)
-		user["last_request"] = datetime.now()
-		user["running"] = False
+		get_user(username).stop()
 		return "Session for " + username + " stopped"
 	return "Invalid login"
 
@@ -90,12 +81,12 @@ def reset():
 		password = request.form.get("password")
 		if username:
 			if is_login_valid(username, password):
-				reset_time_left(username)
+				get_user(username).reset_time_left()
 				return "Session for " + username + " reset"
 		return "Invalid login"
 	else:
 		if is_logged_in():
-			reset_time_left(get_logged_in_user()["username"])
+			get_logged_in_user().reset_time_left()
 			return redirect(url_for("index"))
 		else:
 			return render_template("invalid_login.html")
@@ -103,29 +94,26 @@ def reset():
 @app.route("/time", methods=["POST"])
 def time():
 	username = request.form.get("username")
-	user = get_user(username)
-	if not user:
+	u = get_user(username)
+	if not u:
 		return "Invalid username"
-	refresh_time_left(username)
-	time_left = get_time_left(username)
+	u.ping()
+	time_left = u.get_time_left()
 	time_left_string = str(time_left["hours"]) + " " + str(time_left["minutes"]) + " " + str(time_left["seconds"])
-
-	sched.add_date_job(check_for_timeout, datetime.now() + timedelta(minutes=2), [username])
-
 	return time_left_string
 
 @app.route("/config", methods=["GET", "POST"])
 def config():
 	if request.method == "GET":
 		if is_logged_in():
-			return render_template("config.html", username=get_logged_in_user()["username"], weekdays=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], times=get_times(get_logged_in_user()["username"]))
+			return render_template("config.html", username=get_logged_in_user().username, weekdays=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"], times=get_logged_in_user().get_times())
 		else:
 			return render_template("invalid_login.html")
 	else:
 		if is_logged_in:
-			user = get_logged_in_user()
+			u = get_logged_in_user()
 			for i in range(7):
-				user["times"][i] = timedelta(hours=int(request.form[str(i) + " hours"]), minutes=int(request.form[str(i) + " minutes"]))
+				u.times[i] = timedelta(hours=int(request.form[str(i) + " hours"]), minutes=int(request.form[str(i) + " minutes"]))
 			save_users()
 			return redirect(url_for("index"))
 		else:
@@ -135,74 +123,31 @@ def config():
 def settime():
 	if request.method == "GET":
 		if is_logged_in():
-			return render_template("settime.html", username=get_logged_in_user()["username"])
+			return render_template("settime.html", username=get_logged_in_user().username)
 		else:
 			return render_template("invalid_login.html")
 	else:
 		if is_logged_in():
-			user = get_logged_in_user()
+			u = get_logged_in_user()
 			hours = int(request.form["hours"])
 			minutes = int(request.form["minutes"])
-			user["today"] = timedelta(hours=hours, minutes=minutes)
-			user["last_request"] = datetime.now()
+			u.today = timedelta(hours=hours, minutes=minutes)
+			u.last_calc = datetime.now()
 			return redirect(url_for("index"))
 		else:
 			return render_template("invalid_login.html")
 
-def check_for_timeout(username):
-	user = get_user(username)
-	if datetime.now() - user["last_request"] > timedelta(minutes=2):
-		print("Session for " + username + " timed out")
-		refresh_time_left(username)
-		user["last_request"] = datetime.now()
-		user["running"] = False
-
-def refresh_time_left(username):
-	user = get_user(username)
-	last_request = user["last_request"]
-	now = datetime.now()
-	delta = now - last_request
-	
-	if not last_request.date() == now.date():
-		reset_time_left(username)
-	
-	if user["running"]:
-		user["today"] -= delta
-
-		if user["today"] < timedelta(0):
-			user["today"] = timedelta(0)
-
-		user["last_request"] = now
-
-def get_time_left(username):
-	user = get_user(username)
-	total_seconds = user["today"].seconds
-	hours = total_seconds // 3600
-	minutes = (total_seconds % 3600) // 60
-	seconds = total_seconds % 60
-	return {"hours": hours, "minutes": minutes, "seconds": seconds}
-
-def get_times(username):
-	times = []
-	user = get_user(username)
-	for allowed_time in user["times"]:
-		total_seconds = allowed_time.seconds
-		hours = total_seconds // 3600
-		minutes = (total_seconds % 3600) // 60
-		seconds = total_seconds % 60
-		times.append({"hours": hours, "minutes": minutes, "seconds": seconds})
-	return times
-
-def reset_time_left(username):
-	user = get_user(username)
-	user["today"] = +user["times"][datetime.now().weekday()]
-	user["last_request"] = datetime.now()
+def check_for_timeout(u):
+	if datetime.now() - u.last_ping > timedelta(minutes=2):
+		print("Session for " + u.username + " timed out")
+		u.calc()
+		u.running = False
 
 def is_login_valid(username, password):
 	if get_user(username) is None:
 		return False
 	else:
-		return get_user(username)["password"] == password
+		return get_user(username).password == password
 
 def is_logged_in():
 	return "username" in session and not (get_logged_in_user() is None)
@@ -211,9 +156,9 @@ def get_logged_in_user():
 	return get_user(session.get("username"))
 
 def get_user(name):
-	for user in users_list:
-		if user["username"] == name:
-			return user
+	for u in users_list:
+		if u.username == name:
+			return u
 
 def save_users():
   	pickle.dump(users_list, open("users", "wb"))
