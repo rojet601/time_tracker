@@ -5,3 +5,4 @@ MarkupSafe==0.23
 Werkzeug==0.9.6
 cx-Freeze==4.3.3
 itsdangerous==0.24
+psycopg2==2.5.3
