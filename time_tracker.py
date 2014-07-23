@@ -2,7 +2,6 @@ from flask import *
 from datetime import datetime, timedelta, date
 import pickle
 import os.path
-from apscheduler.scheduler import Scheduler
 from user import User
 
 app = Flask(__name__)
@@ -11,11 +10,11 @@ users_list = []
 if os.path.isfile("users"):
 	users_list = pickle.load(open("users", "rb"))
 
-sched = Scheduler()
-sched.start()
+
 
 @app.route("/")
 def index():
+	cprint("Somebody visited the index.")
 	if is_logged_in():
 		u = get_logged_in_user()
 		time_left = u.get_time_left()
@@ -97,7 +96,9 @@ def time():
 	u = get_user(username)
 	if not u:
 		return "Invalid username"
-	u.ping()
+	if u.running:
+		u.ping()
+	cprint("Ping by " + username)
 	time_left = u.get_time_left()
 	time_left_string = str(time_left["hours"]) + " " + str(time_left["minutes"]) + " " + str(time_left["seconds"])
 	return time_left_string
@@ -137,11 +138,9 @@ def settime():
 		else:
 			return render_template("invalid_login.html")
 
-def check_for_timeout(u):
-	if datetime.now() - u.last_ping > timedelta(minutes=2):
-		print("Session for " + u.username + " timed out")
-		u.calc()
-		u.running = False
+@app.route("/debug")
+def console_page():
+	return console_text
 
 def is_login_valid(username, password):
 	if get_user(username) is None:
@@ -162,6 +161,13 @@ def get_user(name):
 
 def save_users():
   	pickle.dump(users_list, open("users", "wb"))
+
+def cprint(text):
+	global console_text
+	console_text += str(datetime.now()) + "> " + text + "<br>"
+
+console_text = " "
+cprint("Startup complete")
 
 if __name__ == '__main__':
 	app.run(debug=True)

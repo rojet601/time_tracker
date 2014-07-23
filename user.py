@@ -1,6 +1,10 @@
 from datetime import datetime, timedelta, date
+from apscheduler.scheduler import Scheduler
 
 class User(object):
+	sched = Scheduler()
+	sched.start()
+
 	def __init__(self, username, password):
 		self.username = username
 		self.password = password
@@ -19,7 +23,6 @@ class User(object):
 			self.running = True
 
 	def stop(self):
-		self.ping()
 		self.calc()
 		self.running = False
 
@@ -63,4 +66,9 @@ class User(object):
 
 	def ping(self):
 		self.last_ping = datetime.now()
-		sched.add_date_job(check_for_timeout, datetime.now() + timedelta(minutes=2), [self])
+		User.sched.add_date_job(self.check_for_timeout, datetime.now() + timedelta(minutes=1), [])
+
+	def check_for_timeout(self):
+		if datetime.now() - self.last_ping > timedelta(minutes=1):
+			print("Session for " + self.username + " timed out")
+			self.stop()
