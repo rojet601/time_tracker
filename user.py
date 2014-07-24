@@ -61,6 +61,6 @@ class User(object):
 		self.last_ping = datetime.now()
 
 	def check_for_timeout(self):
-		if datetime.now() > self.last_ping + timedelta(minutes=1):
+		if datetime.now() > self.last_ping + timedelta(minutes=1) and self.running:
 			print("Session for " + self.username + " timed out")
 			self.running = False
