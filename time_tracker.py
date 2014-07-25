@@ -47,9 +47,12 @@ def register():
 	else:
 		username = request.form.get("username")
 		password = request.form.get("password")
-		users_list.append(User(username, password))
-		save_users()
-		return render_template("complete_registration.html", new_user=username)
+		if get_user(username) is None:
+			users_list.append(User(username, password))
+			save_users()
+			return render_template("complete_registration.html", new_user=username)
+		else:
+			return render_template("username_taken.html")
 
 @app.route("/users")
 def users():
