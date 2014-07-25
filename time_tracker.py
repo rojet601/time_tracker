@@ -93,6 +93,15 @@ def reset():
 		else:
 			return render_template("invalid_login.html")
 
+@app.route("/time/<username>")
+def show_remaining_time(username):
+	u = get_user(username)
+	if u is None:
+		return render_template("invalid_login.html")
+	else:
+		time_left = u.get_time_left()
+		return render_template("time.html", hours=str(time_left["hours"]).zfill(2), minutes=str(time_left["minutes"]).zfill(2), seconds=str(time_left["seconds"]).zfill(2))
+
 @app.route("/time", methods=["POST"])
 def time():
 	username = request.form.get("username")
