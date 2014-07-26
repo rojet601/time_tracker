@@ -108,10 +108,10 @@ def time():
 	u = get_user(username)
 	if not u:
 		return "Invalid username"
-	if u.running:
-		u.ping()
-	else:
+	u.update()
+	if not u.running:
 		u.start()
+	u.ping()
 	cprint("Ping by " + username)
 	time_left = u.get_time_left()
 	time_left_string = str(time_left["hours"]) + " " + str(time_left["minutes"]) + " " + str(time_left["seconds"])

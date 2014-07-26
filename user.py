@@ -11,7 +11,6 @@ class User(object):
 		self.last_ping = datetime.now()
 
 	def start(self):
-		self.ping()
 		if not self.last_calc.date() == date.today():
 			self.reset_time_left()
 		if not self.running:
@@ -19,7 +18,7 @@ class User(object):
 			self.running = True
 
 	def get_time_left(self):
-		self.calc()
+		self.update()
 		total_seconds = self.today.seconds
 		hours = total_seconds // 3600
 		minutes = (total_seconds % 3600) // 60
@@ -40,7 +39,7 @@ class User(object):
 			times_list.append({"hours": hours, "minutes": minutes, "seconds": seconds})
 		return times_list
 
-	def calc(self):
+	def update(self):
 		self.check_for_timeout()
 		last_calculation = self.last_calc
 		now = datetime.now()
